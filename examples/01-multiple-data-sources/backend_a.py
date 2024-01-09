@@ -16,7 +16,8 @@ limitations under the License.
 """
 
 # pylint: disable=wrong-import-order
-from diffsync import DiffSync
+from diffsync import DiffSync, DiffSyncConfig
+import logging
 from models import Site, Device, Interface  # pylint: disable=no-name-in-module
 
 DATA = {
@@ -29,6 +30,15 @@ DATA = {
         "sfo-spine2": {"role": "spine", "interfaces": {"eth0": "TBD", "eth1": "ddd", "eth2": "Interface 2"}},
     },
 }
+
+#### EXAMPLE
+
+
+class BackendAConfig(DiffSyncConfig):
+    logger: logging.Logger
+    debug: bool
+    backend_url: str
+    backend_connection_object: object
 
 
 class BackendA(DiffSync):
@@ -46,6 +56,9 @@ class BackendA(DiffSync):
 
     def load(self):
         """Initialize the BackendA Object by loading some site, device and interfaces from DATA."""
+
+        self.cfg.logger.info("I am a LOG AND SO CAN YOU")
+
         for site_name, site_data in DATA.items():
             site = self.site(name=site_name)
             self.add(site)

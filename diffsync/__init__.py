@@ -18,7 +18,7 @@ import sys
 from inspect import isclass
 from typing import Callable, ClassVar, Dict, List, Optional, Tuple, Type, Union, Any, Set
 
-from pydantic import BaseModel, PrivateAttr
+from pydantic import BaseModel, PrivateAttr, TypeVar
 import structlog  # type: ignore
 
 from diffsync.diff import Diff
@@ -37,6 +37,9 @@ else:
 # This workaround is used because we are defining a method called `str` in our class definition, which therefore renders
 # the builtin `str` type unusable.
 StrType = str
+
+
+DiffSyncConfig = TypeVar("DiffSyncConfig", bound=BaseModel)
 
 
 class DiffSyncModel(BaseModel):
@@ -95,9 +98,6 @@ class DiffSyncModel(BaseModel):
 
     Can be set as a class attribute or an instance attribute as needed.
     """
-
-    diffsync: Optional["DiffSync"] = None
-    """Optional: the DiffSync instance that owns this model instance."""
 
     _status: DiffSyncStatus = PrivateAttr(DiffSyncStatus.SUCCESS)
     """Status of the last attempt at creating/updating/deleting this model."""
@@ -188,7 +188,7 @@ class DiffSyncModel(BaseModel):
         self._status_message = message
 
     @classmethod
-    def create_base(cls, diffsync: "DiffSync", ids: Dict, attrs: Dict) -> Optional[Self]:
+    def create_base(cls, cfg: DiffSyncConfig, ids: Dict, attrs: Dict) -> Optional[Self]:
         """Instantiate this class, along with any platform-specific data creation.
 
         This method is not meant to be subclassed, users should redefine create() instead.
@@ -201,19 +201,19 @@ class DiffSyncModel(BaseModel):
         Returns:
             DiffSyncModel: instance of this class.
         """
-        model = cls(**ids, diffsync=diffsync, **attrs)
+        model = cls(**ids, cfg=cfg, **attrs)
         model.set_status(DiffSyncStatus.SUCCESS, "Created successfully")
         return model
 
     @classmethod
-    def create(cls, diffsync: "DiffSync", ids: Dict, attrs: Dict) -> Optional[Self]:
+    def create(cls, cfg: DiffSyncConfig, ids: Dict, attrs: Dict) -> Optional[Self]:
         """Instantiate this class, along with any platform-specific data creation.
 
         Subclasses must call `super().create()` or `self.create_base()`; they may wish to then override the default status information
         by calling `set_status()` to provide more context (such as details of any interactions with underlying systems).
 
         Args:
-            diffsync: The master data store for other DiffSyncModel instances that we might need to reference
+            cfg: Configuration data for this adapter
             ids: Dictionary of unique-identifiers needed to create the new object
             attrs: Dictionary of additional attributes to set on the new object
 
@@ -224,7 +224,7 @@ class DiffSyncModel(BaseModel):
         Raises:
             ObjectNotCreated: if an error occurred.
         """
-        return cls.create_base(diffsync=diffsync, ids=ids, attrs=attrs)
+        return cls.create_base(cfg=cfg, ids=ids, attrs=attrs)
 
     def update_base(self, attrs: Dict) -> Optional[Self]:
         """Base Update method to update the attributes of this instance, along with any platform-specific data updates.
